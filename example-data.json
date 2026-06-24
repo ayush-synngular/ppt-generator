@@ -1,0 +1,18 @@
+{
+  "title": "AI Report Presentation",
+  "template": "default",
+  "slides": [
+    {
+      "title": "Executive Summary",
+      "content": "This presentation covers the latest findings in AI research and development."
+    },
+    {
+      "title": "Key Findings",
+      "content": "1. Machine learning models are becoming more accurate\n2. Natural language processing has improved significantly\n3. Computer vision applications are expanding rapidly"
+    },
+    {
+      "title": "Future Outlook",
+      "content": "The future of AI looks promising with continued advancements in neural networks and quantum computing integration."
+    }
+  ]
+}

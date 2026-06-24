@@ -1,0 +1,517 @@
+{
+  "filePath": "AI Education Test.pptx",
+  "metadata": {
+    "core": {
+      "cp:coreProperties": {
+        "dc:title": "AI in Education-General.pptx",
+        "dcterms:created": "2026-06-24T07:11:36Z",
+        "dcterms:modified": "2026-06-24T07:11:36Z"
+      }
+    },
+    "app": {
+      "Template": "",
+      "TotalTime": "0",
+      "Application": "Microsoft Office PowerPoint",
+      "PresentationFormat": "On-screen Show (4:3)",
+      "ScaleCrop": "false",
+      "LinksUpToDate": "false",
+      "SharedDoc": "false",
+      "HyperlinksChanged": "false",
+      "AppVersion": "12.0000"
+    }
+  },
+  "slides": [
+    {
+      "slideNumber": 1,
+      "text": [
+        "Artiﬁcial Intelligence in Education",
+        "शक्षा में कृ त्रिम बुद्धमत्ता",
+        "Dr. Rejaul Karim Barbhuiya Assistant Professor, CIET- NCERT"
+      ],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 2,
+      "text": [
+        "NEP 2020 highlights (Learn, Unlearn, Relearn)",
+        "With scientific and technological advances, such as the rise of big data, machine learning, and artificial intelligence, many unskilled jobs may be taken over by machines,",
+        "the need for a skilled workforce, with multidisciplinary abilities across the sciences, social sciences, and humanities, will be increasingly in greater demand.",
+        "with the quickly changing employment landscape and global ecosystem, it is becoming increasingly critical that children not only learn, but more importantly learn how to learn."
+      ],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 3,
+      "text": [
+        "What is Intelligence",
+        "Intelligence - ability to learn and perform suitable techniques",
+        "to solve problems and achieve goals (Stanford Univ)",
+        "A modern factory robot is flexible, accurate, and consistent but not intelligent."
+      ],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 4,
+      "text": [
+        "What is AI?",
+        "The branch of science and technology that is devoted to the creation of machines (Computer System, Robots, etc.) that learn and think as intelligently as human beings is known as Artificial Intelligence or AI."
+      ],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        },
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 5,
+      "text": [
+        "What is AI (Artiﬁcial Intelligence)",
+        "Simulation of human intelligence processes by computer systems. Characteristics of human behaviour:",
+        "Understanding",
+        "Reasoning",
+        "Learning",
+        "Solving Problems",
+        "Effective communication",
+        "The Science and Engineering of making intelligent machines, especially intelligent computer programs - McCarthy",
+        "SIRI and Alexa are powered by AI"
+      ],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 6,
+      "text": [
+        "Applications of AI in Daily Life"
+      ],
+      "shapes": [
+        {
+          "type": "text",
+          "text": "Applications of AI in Daily Life",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        },
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 7,
+      "text": [
+        "How AI systems work? 1",
+        "by analyzing data and learning from patterns.",
+        "use algorithms, or step-by-step instructions, to learn from data and make decisions",
+        "The more data they are given and the more patterns they learn, the better they become at making decisions and performing tasks.",
+        "●"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 8,
+      "text": [
+        "Why sudden boom in AI Systems?",
+        "signiﬁcant improvements in computing power and data storage capabilities",
+        "The growth of the internet, social media, and other digital technologies has led to the accumulation of vast amounts of data, which can be analyzed and used to train AI models.",
+        "Advances in the AI research (Deep Learning)",
+        "Advancements in Natural Language Processing (NLP): The ability of AI to understand and interpret human language"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 9,
+      "text": [
+        "Technical Applications Areas of AI"
+      ],
+      "shapes": [
+        {
+          "type": "text",
+          "text": "Technical Applications Areas of AI",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        },
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 10,
+      "text": [
+        "Major areas/ﬁelds of AI",
+        "Machine Learning - how computer agents can improve their perception, knowledge, thinking, or actions based on experience or data",
+        "Robotics - puts artiﬁcial intelligence into practice using machines that perceive and interact with the physical world",
+        "Computer vision - can understand images and video",
+        "Natural language processing - understand written and spoken language; automatic translation of text from one language to another, or understanding text to produce knowledge about the world.",
+        "Expert Systems - learns and imitates a human being’s decision-making ability."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 11,
+      "text": [
+        "Generative AI",
+        "It is a type of artiﬁcial intelligence that focuses on creating/generating new content.",
+        "It's a subset of machine learning, drawing from techniques like deep learning and reinforcement learning to generate output that con include text, images, music, video, and more."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 12,
+      "text": [
+        "Gen AI Use cases"
+      ],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 13,
+      "text": [
+        "Major Use Area of Generative AI"
+      ],
+      "shapes": [
+        {
+          "type": "text",
+          "text": "Major Use Area of Generative AI",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        },
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 14,
+      "text": [
+        "Conversational AI",
+        "a type of AI that can simulate human conversation .",
+        "Happens through natural language processing (NLP), a field of AI that allows computers to understand and process human languages.",
+        "“ synthetic brain power that makes machines capable of understanding, processing and responding to human language .”"
+      ],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 15,
+      "text": [],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 16,
+      "text": [],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 17,
+      "text": [],
+      "shapes": [
+        {
+          "type": "image",
+          "text": "",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          }
+        }
+      ]
+    },
+    {
+      "slideNumber": 18,
+      "text": [
+        "AI in Education",
+        "Use of Computers in Education are primarily aimed towards:",
+        "increasing accessibility - Learning resources can be accessed from anywhere, at any time",
+        "facilitating personalized learning inside and outside the classroom. Learning can be tailored and adapted to each student’s goals and abilities through personalized programs,",
+        "Time-consuming, tedious tasks such as record keeping or grading multiple- choice tests can be completed through AI automation, and",
+        "exploring fundamental questions about how people learn"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 19,
+      "text": [
+        "Personalized Learning",
+        "tailor learning experiences to the unique needs, preferences, pace and abilities of each learner.",
+        "analyzing data about individual learners, AI can provide insights into areas of strengths and weaknesses, identify learning styles, and provide customized recommendations for content, resources, and activities.",
+        "Leads to more engaging, relevant, and eﬀective learning experience",
+        "bridge the skills gap that exists between diﬀerent learners"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 20,
+      "text": [
+        "Adaptive Learning",
+        "AI algorithms observe you to detect how you prefer to learn as an individual or as a chort",
+        "Goal is creating entire learning journeys or ﬂows that adjust to each learner based on their interests, learning preferences, needs, skills, and what they wish to learn"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 21,
+      "text": [
+        "Universal Access",
+        "Real time text to speech, Speech to text conversion",
+        "text to text, speech to speech conversion from one language to another",
+        "Will make the classroom accessible to people who speak diﬀerent languages or those having visual or hearing impairments"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 22,
+      "text": [
+        "From a policymaker’s perspective",
+        "Potential application categories of AI in Edu:",
+        "education management and delivery;",
+        "learning and assessment;",
+        "empowering teachers and enhancing teaching; and",
+        "lifelong learning."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 23,
+      "text": [
+        "Education management and delivery",
+        "AI systems are designed to automate aspects of school administration, including admissions, timetabling, attendance and homework monitoring, and school inspections.",
+        "a data- mining approach ‘learning analytics’ is used to analyse the big data generated in learning management systems to provide information for teachers and administrators, and sometimes guidance for students.",
+        "some learning analytics predict which students are at risk of failure."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 24,
+      "text": [
+        "Education management and delivery",
+        "visual dashboards are used to inform data- driven decision making",
+        "Many AI based applications collect huge amounts of student interaction data, use machine-learning techniques to ‘search for patterns’. The aim is to teach the software to identify when children are confused or bored, in order to help them become engaged."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 25,
+      "text": [
+        "Learning and assessment",
+        "Broad aim to provide every learner, wherever they are in the world, with access to high-quality, personalized, and ubiquitous lifelong learning."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 26,
+      "text": [
+        "Learning and assessment",
+        "Other categories of AI based systems for learning and assessment are:",
+        "Dialogue-based tutoring systems (NLP) Exploratory learning environments Automated writing evaluation",
+        "AI-supported reading and language learning (Babbel, Duolingo) Smart robots",
+        "Educational virtual and augmented reality"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 27,
+      "text": [
+        "Intelligent Tutoring System",
+        "Works is by providing step-by-step tutorials, individualized for each student, through topics in structured subjects such as mathematics or physics.",
+        "It determines an optimal pathway through the learning materials and activities by drawing on expert knowledge about the subject and cognitive sciences,",
+        "Respond to individual students’ misconceptions and successes",
+        "As the student engages with the learning activities, the system uses knowledge tracing and machine learning to automatically adjust the level of diﬃculty and provide hints or guidance according to the individual student’s strengths and weaknesses"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 28,
+      "text": [
+        "Empowering teachers and enhancing teaching",
+        "AI applications aim to help teachers reduce workloads by automating tasks such as assessment, plagiarism detection, administration and feedback.",
+        "AI-driven discussion forum monitoring (AI Assistant) AI- powered teaching assistants"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 29,
+      "text": [
+        "Empowering role of teachers",
+        "it is widely agreed that as AI tools become more available in classroom, it is likely that teacher roles will change.",
+        "What is not yet clear is how this will happen.",
+        "Teachers will need to build new competencies to enable them to work eﬀectively with AI, and undertake appropriate professional development to foster their human and social capabilities."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 30,
+      "text": [
+        "Lifelong learning",
+        "AI-driven lifelong learning companions",
+        "AI-enabled continuous assessment",
+        "AI-enabled record of lifelong learning achievements - AI-driven e- portfolio"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 31,
+      "text": [
+        "Ethical Concerns Related to AI systems",
+        "Fairness: should be designed to avoid bias and discrimination and ensure equal treatment for all individuals, regardless of their race, gender, age, or other personal characteristics.",
+        "Transparency: should be transparent and explainable, with clear documentation of how they make decisions and recommendations.",
+        "Privacy: respect the privacy of individuals and protect their personal data from unauthorized access or misuse.",
+        "Accountability: Those who develop and deploy AI systems should be accountable",
+        "Safety: to ensure the safety and well-being of users and others who may be aﬀected by their use."
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 32,
+      "text": [
+        "Way Forward",
+        "Educators need to develop a better understanding of AI’s impact, including on education and training.",
+        "educators and students should have a basic understanding of AI and data usage to be able to engage positively, critically and ethically with this technology and to exploit its full potential.",
+        "European Commission published Ethical Guidelines (https://ec.europa.eu/commission/presscorner/detail/en/ip_22_6338) on the Use of Artiﬁcial Intelligence (AI) and data in teaching and learning for teachers"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 33,
+      "text": [
+        "Thank You"
+      ],
+      "shapes": []
+    }
+  ]
+}

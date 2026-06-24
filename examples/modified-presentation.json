@@ -1,0 +1,137 @@
+{
+  "filePath": "/home/synngular-server/Documents/GitHub/PPT Nodejs/ppt-generator/test-auto-layout.pptx",
+  "metadata": {
+    "core": {
+      "cp:coreProperties": {
+        "dc:title": "PptxGenJS Presentation",
+        "dc:subject": "PptxGenJS Presentation",
+        "dc:creator": "PPT Generator Utility",
+        "cp:lastModifiedBy": "PPT Generator Utility",
+        "cp:revision": "1",
+        "dcterms:created": "2026-06-24T06:02:41Z",
+        "dcterms:modified": "2026-06-24T06:02:41Z"
+      }
+    },
+    "app": {
+      "TotalTime": "0",
+      "Words": "0",
+      "Application": "Microsoft Office PowerPoint",
+      "PresentationFormat": "On-screen Show (16:9)",
+      "Paragraphs": "0",
+      "Slides": "6",
+      "Notes": "6",
+      "HiddenSlides": "0",
+      "MMClips": "0",
+      "ScaleCrop": "false",
+      "HeadingPairs": {
+        "vt:vector": {
+          "vt:variant": [
+            {
+              "vt:lpstr": "Fonts Used"
+            },
+            {
+              "vt:i4": "2"
+            },
+            {
+              "vt:lpstr": "Theme"
+            },
+            {
+              "vt:i4": "1"
+            },
+            {
+              "vt:lpstr": "Slide Titles"
+            },
+            {
+              "vt:i4": "6"
+            }
+          ]
+        }
+      },
+      "TitlesOfParts": {
+        "vt:vector": {
+          "vt:lpstr": [
+            "Arial",
+            "Calibri",
+            "Office Theme",
+            "Slide 1",
+            "Slide 2",
+            "Slide 3",
+            "Slide 4",
+            "Slide 5",
+            "Slide 6"
+          ]
+        }
+      },
+      "Company": "Internal",
+      "LinksUpToDate": "false",
+      "SharedDoc": "false",
+      "HyperlinksChanged": "false",
+      "AppVersion": "16.0000"
+    }
+  },
+  "slides": [
+    {
+      "slideNumber": 1,
+      "text": [
+        "Modified Content Area"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 2,
+      "text": [
+        "2 Column Layout",
+        "Modified Content Area",
+        "Col 1",
+        "Col 2"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 3,
+      "text": [
+        "3 Column Layout",
+        "Modified Content Area",
+        "Col 1",
+        "Col 2",
+        "Col 3"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 4,
+      "text": [
+        "Grid Layout",
+        "Modified Content Area",
+        "Cell 1",
+        "Cell 2",
+        "Cell 3",
+        "Cell 4",
+        "Cell 5",
+        "Cell 6"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 5,
+      "text": [
+        "Vertical Stack Layout",
+        "Modified Content Area",
+        "Item 1",
+        "Item 2",
+        "Item 3",
+        "Item 4"
+      ],
+      "shapes": []
+    },
+    {
+      "slideNumber": 6,
+      "text": [
+        "Text Height Estimation",
+        "Modified Content Area",
+        "Estimated height: 0.23 in"
+      ],
+      "shapes": []
+    }
+  ]
+}

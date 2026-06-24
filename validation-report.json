@@ -1,0 +1,59 @@
+{
+  "valid": false,
+  "errors": [
+    {
+      "name": "Valid configuration",
+      "errors": []
+    },
+    {
+      "name": "Invalid slide type",
+      "errors": [
+        "Slide 1: Slide type 'invalid-slide' is not supported."
+      ]
+    },
+    {
+      "name": "Invalid coordinates",
+      "errors": [
+        "Slide 1: Component 1: Bounds: Bounds.w must be greater than 0.",
+        "Slide 1: Component 1: Bounds: Bounds y+h must not exceed slide height.",
+        "Slide 1: Bounds: Bounds.x must be greater than or equal to 0.",
+        "Slide 1: Bounds: Bounds x+w must not exceed slide width.",
+        "Slide 1: Bounds: Bounds y+h must not exceed slide height."
+      ]
+    },
+    {
+      "name": "Missing image path",
+      "errors": [
+        "Slide 1: Component 1: Image config must include a valid path string."
+      ]
+    },
+    {
+      "name": "Invalid chart type",
+      "errors": [
+        "Slide 1: Component 1: Chart type 'scatter' is not supported."
+      ]
+    }
+  ],
+  "warnings": [
+    {
+      "name": "Valid configuration",
+      "warnings": []
+    },
+    {
+      "name": "Invalid slide type",
+      "warnings": []
+    },
+    {
+      "name": "Invalid coordinates",
+      "warnings": []
+    },
+    {
+      "name": "Missing image path",
+      "warnings": []
+    },
+    {
+      "name": "Invalid chart type",
+      "warnings": []
+    }
+  ]
+}
