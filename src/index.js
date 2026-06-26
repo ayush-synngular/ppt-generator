@@ -841,7 +841,7 @@ function main() {
             runInspect([null, params.file]);
             break;
           case 'create':
-            runCreate(params, params.output);
+            runCreate(params, [null, params.subCommand], params.output);
             break;
           case 'replace':
             runReplace([null, params.old, params.new, params.file], params.output);
@@ -850,7 +850,7 @@ function main() {
             runGenerate(params, params.output);
             break;
           case 'template':
-            runTemplate(params, params.output);
+            runTemplate(params, [null, params.templateType], params.output);
             break;
           case 'bind':
             runBind(params);

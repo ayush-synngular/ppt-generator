@@ -426,35 +426,6 @@ class PptModifier {
     return replacements;
   }
 
-  _applyTextReplacements(parsedSlide) {
-    const target = parsedSlide;
-    const oldNewPairs = this.replacements;
-
-    const replaceTextInNode = (node) => {
-      if (!node || typeof node !== 'object') {
-        return;
-      }
-
-      if (node['a:t'] && typeof node['a:t'] === 'string') {
-        oldNewPairs.forEach(({ oldText, newText }) => {
-          if (node['a:t'] === oldText) {
-            node['a:t'] = newText;
-          }
-        });
-      }
-
-      Object.values(node).forEach((child) => {
-        if (Array.isArray(child)) {
-          child.forEach(replaceTextInNode);
-        } else if (typeof child === 'object') {
-          replaceTextInNode(child);
-        }
-      });
-    };
-
-    replaceTextInNode(target);
-    return target;
-  }
 
   // -------------------------------------------------------------------
   // Public: slide count
