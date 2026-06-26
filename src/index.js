@@ -136,6 +136,15 @@ function printHelp() {
   console.log('  set-background --input <file.pptx> --slide <n> --color <hex> [--output <file.pptx>]');
   console.log('  add-image --input <file.pptx> --slide <n> --path <img> [--x n] [--y n] [--w n] [--h n] [--output <file.pptx>]');
   console.log('  add-slide --input <file.pptx> --text "content" [--x n] [--y n] [--w n] [--h n] [--fontSize n] [--color hex] [--bold true] [--align left|center|right] [--fontFace name] [--output <file.pptx>]');
+  console.log('');
+  console.log('File System Commands:');
+  console.log('  read-file --path <file> [--startLine <n>] [--endLine <n>]');
+  console.log('  write-file --path <file> --content "text"');
+  console.log('  edit-file --path <file> --replace "text" [--search "old"] [--startLine <n>] [--endLine <n>]');
+  console.log('  grep --pattern <regex> --path <dir> [--include <glob>]');
+  console.log('  glob --pattern <glob> --path <dir>');
+  console.log('  list-dir --path <dir> [--recursive true]');
+  console.log('  create-dir --path <dir>');
   console.log('  help');
   console.log('');
   console.log('Component Types:');
@@ -590,89 +599,459 @@ function runAddSlide(flags, outputName) {
   });
 }
 
+// -------------------------------------------------------------------
+// File-system utility handlers (from tool.json: read-file, write-file,
+// edit-file, grep, glob, list-dir, create-dir)
+// These operate on plain files — not on PPTX internals.
+// -------------------------------------------------------------------
+
+function runReadFile(flags) {
+  const filePath = flags.path;
+  if (!filePath) {
+    console.error('❌ Missing --path <file>');
+    process.exit(1);
+  }
+  if (!fs.existsSync(filePath)) {
+    console.error(`❌ File not found: ${filePath}`);
+    process.exit(1);
+  }
+  try {
+    const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+    const startLine = flags.startLine ? parseInt(flags.startLine) - 1 : 0;
+    const endLine   = flags.endLine   ? parseInt(flags.endLine)       : lines.length;
+    const selected  = lines.slice(startLine, endLine);
+    selected.forEach((line, i) => console.log(`${startLine + i + 1}\t${line}`));
+  } catch (err) {
+    console.error(`❌ Error reading file: ${err.message}`);
+  }
+}
+
+function runWriteFile(flags) {
+  const filePath = flags.path;
+  const content  = flags.content;
+  if (!filePath) {
+    console.error('❌ Missing --path <file>');
+    process.exit(1);
+  }
+  if (content === undefined) {
+    console.error('❌ Missing --content "text"');
+    process.exit(1);
+  }
+  try {
+    const dir = require('path').dirname(filePath);
+    if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, content, 'utf8');
+    console.log(`🎉 Written to: ${filePath}`);
+  } catch (err) {
+    console.error(`❌ Error writing file: ${err.message}`);
+  }
+}
+
+function runEditFile(flags) {
+  const filePath = flags.path;
+  const replace  = flags.replace;
+  if (!filePath) {
+    console.error('❌ Missing --path <file>');
+    process.exit(1);
+  }
+  if (replace === undefined) {
+    console.error('❌ Missing --replace "text"');
+    process.exit(1);
+  }
+  if (!fs.existsSync(filePath)) {
+    console.error(`❌ File not found: ${filePath}`);
+    process.exit(1);
+  }
+  try {
+    let content = fs.readFileSync(filePath, 'utf8');
+
+    if (flags.search !== undefined) {
+      // Search-replace mode
+      if (!content.includes(flags.search)) {
+        console.error(`❌ Search string not found in file: ${flags.search}`);
+        process.exit(1);
+      }
+      content = content.split(flags.search).join(replace);
+    } else if (flags.startLine !== undefined) {
+      // Line-range replacement mode
+      const lines     = content.split('\n');
+      const startLine = parseInt(flags.startLine) - 1;
+      const endLine   = flags.endLine ? parseInt(flags.endLine) : startLine + 1;
+      lines.splice(startLine, endLine - startLine, replace);
+      content = lines.join('\n');
+    } else {
+      console.error('❌ Provide either --search "text" or --startLine <n> for edit-file.');
+      process.exit(1);
+    }
+
+    fs.writeFileSync(filePath, content, 'utf8');
+    console.log(`🎉 File edited: ${filePath}`);
+  } catch (err) {
+    console.error(`❌ Error editing file: ${err.message}`);
+  }
+}
+
+function runGrep(flags) {
+  const pattern   = flags.pattern;
+  const dirPath   = flags.path;
+  const include   = flags.include || '*';
+  if (!pattern || !dirPath) {
+    console.error('❌ Missing --pattern <regex> and/or --path <dir>');
+    process.exit(1);
+  }
+  if (!fs.existsSync(dirPath)) {
+    console.error(`❌ Directory not found: ${dirPath}`);
+    process.exit(1);
+  }
+  try {
+    const { execSync } = require('child_process');
+    const cmd = process.platform === 'win32'
+      ? `findstr /S /N /R "${pattern}" "${dirPath}\\${include}"`
+      : `grep -rn --include="${include}" "${pattern}" "${dirPath}"`;
+    const result = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+    process.stdout.write(result);
+  } catch (err) {
+    // grep exits with code 1 when no matches — that is not an error
+    if (err.stdout) process.stdout.write(err.stdout);
+    else console.log('(no matches found)');
+  }
+}
+
+function runGlob(flags) {
+  const pattern = flags.pattern;
+  const dirPath = flags.path;
+  if (!pattern || !dirPath) {
+    console.error('❌ Missing --pattern <glob> and/or --path <dir>');
+    process.exit(1);
+  }
+  if (!fs.existsSync(dirPath)) {
+    console.error(`❌ Directory not found: ${dirPath}`);
+    process.exit(1);
+  }
+  try {
+    const { execSync } = require('child_process');
+    const cmd = process.platform === 'win32'
+      ? `dir /S /B "${require('path').join(dirPath, pattern)}"`
+      : `find "${dirPath}" -path "${require('path').join(dirPath, pattern)}" -type f`;
+    const result = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+    process.stdout.write(result);
+  } catch (err) {
+    if (err.stdout) process.stdout.write(err.stdout);
+    else console.log('(no files matched)');
+  }
+}
+
+function runListDir(flags) {
+  const dirPath   = flags.path;
+  const recursive = flags.recursive === 'true' || flags.recursive === true;
+  if (!dirPath) {
+    console.error('❌ Missing --path <dir>');
+    process.exit(1);
+  }
+  if (!fs.existsSync(dirPath)) {
+    console.error(`❌ Directory not found: ${dirPath}`);
+    process.exit(1);
+  }
+  try {
+    function listDir(dir, indent) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries.forEach(entry => {
+        const fullPath = require('path').join(dir, entry.name);
+        if (entry.isDirectory()) {
+          console.log(`${indent}📁 ${entry.name}/`);
+          if (recursive) listDir(fullPath, indent + '  ');
+        } else {
+          const size = fs.statSync(fullPath).size;
+          console.log(`${indent}📄 ${entry.name} (${size} bytes)`);
+        }
+      });
+    }
+    console.log(`📂 ${dirPath}`);
+    listDir(dirPath, '  ');
+  } catch (err) {
+    console.error(`❌ Error listing directory: ${err.message}`);
+  }
+}
+
+function runCreateDir(flags) {
+  const dirPath = flags.path;
+  if (!dirPath) {
+    console.error('❌ Missing --path <dir>');
+    process.exit(1);
+  }
+  try {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`🎉 Directory created: ${dirPath}`);
+  } catch (err) {
+    console.error(`❌ Error creating directory: ${err.message}`);
+  }
+}
+
 /**
  * Main execution function
  * This function handles CLI commands and can be called programmatically
  */
 function main() {
-  const args = process.argv.slice(2);
-  const parsed = parseArgs(args);
-  const { flags, positional } = parsed;
+  // Check if we're running in machine interface mode
+  const workspacePath = process.env.WORKSPACE_PATH;
+  
+  // If WORKSPACE_PATH is set, we're in machine interface mode
+  if (workspacePath) {
+    // Machine interface mode
+    if (process.argv.length < 3) {
+      console.error(JSON.stringify({
+        success: false,
+        error: {
+          code: "INVALID_ARGS",
+          message: "Operation name and JSON parameters required",
+          recovery: "Usage: WORKSPACE_PATH=/path/to/workspace node dist/index.js <operation> '{\"param\":\"value\"}'"
+        }
+      }));
+      process.exit(1);
+    }
+    
+    const operation = process.argv[2];
+    const paramsJson = process.argv[3];
+    
+    // Validate workspace path
+    const fs = require('fs');
+    if (!fs.existsSync(workspacePath)) {
+      console.error(JSON.stringify({
+        success: false,
+        error: {
+          code: "WORKSPACE_NOT_FOUND",
+          message: `Workspace path does not exist: ${workspacePath}`,
+          recovery: "Ensure the workspace path exists and is accessible"
+        }
+      }));
+      process.exit(1);
+    }
+    
+    try {
+      const params = JSON.parse(paramsJson);
+      
+      // Simplified approach: directly call the appropriate function based on operation
+      try {
+        // For machine interface, we'll execute the operation and return JSON
+        switch(operation) {
+          case 'demo':
+            runDemo(params, params.output);
+            break;
+          case 'inspect':
+            runInspect([null, params.file]);
+            break;
+          case 'create':
+            runCreate(params, params.output);
+            break;
+          case 'replace':
+            runReplace([null, params.old, params.new, params.file], params.output);
+            break;
+          case 'generate':
+            runGenerate(params, params.output);
+            break;
+          case 'template':
+            runTemplate(params, params.output);
+            break;
+          case 'bind':
+            runBind(params);
+            break;
+          case 'export':
+            runExport(params);
+            break;
+          case 'delete-slide':
+            runDeleteSlide(params, params.output);
+            break;
+          case 'duplicate-slide':
+            runDuplicateSlide(params, params.output);
+            break;
+          case 'move-slide':
+            runMoveSlide(params, params.output);
+            break;
+          case 'slide-count':
+            runSlideCount(params);
+            // Note: slide-count prints directly to console, so we don't return anything here
+            return;
+          case 'replace-global':
+            runReplaceGlobal(params, params.output);
+            break;
+          case 'set-background':
+            runSetBackground(params, params.output);
+            break;
+          case 'add-image':
+            runAddImage(params, params.output);
+            break;
+          case 'add-slide':
+            runAddSlide(params, params.output);
+            break;
+          case 'read-file':
+            runReadFile(params);
+            return;
+          case 'write-file':
+            runWriteFile(params);
+            break;
+          case 'edit-file':
+            runEditFile(params);
+            break;
+          case 'grep':
+            runGrep(params);
+            return;
+          case 'glob':
+            runGlob(params);
+            return;
+          case 'list-dir':
+            runListDir(params);
+            return;
+          case 'create-dir':
+            runCreateDir(params);
+            break;
+          default:
+            console.error(JSON.stringify({
+              success: false,
+              error: {
+                code: "UNKNOWN_OPERATION",
+                message: `Unknown operation: ${operation}`,
+                recovery: "Available operations: demo, inspect, create, replace, generate, template, bind, export, delete-slide, duplicate-slide, move-slide, slide-count, replace-global, set-background, add-image, add-slide"
+              }
+            }));
+            process.exit(1);
+        }
+        
+        // If we reach here, operation was successful
+        console.log(JSON.stringify({
+          success: true,
+          data: {}
+        }));
+      } catch (error) {
+        console.error(JSON.stringify({
+          success: false,
+          error: {
+            code: "OPERATION_ERROR",
+            message: error.message,
+            recovery: "Check the operation parameters and ensure the workspace is accessible"
+          }
+        }));
+        process.exit(1);
+      }
+    } catch (parseError) {
+      console.error(JSON.stringify({
+        success: false,
+        error: {
+          code: "JSON_PARSE_ERROR",
+          message: "Failed to parse JSON parameters",
+          recovery: "Ensure parameters are valid JSON"
+        }
+      }));
+      process.exit(1);
+    }
+  } else {
+    // Regular CLI mode - preserve existing behavior
+    const args = process.argv.slice(2);
+    const parsed = parseArgs(args);
+    const { flags, positional } = parsed;
 
-  // Default output name
-  const outputName = flags.output || 'output.pptx';
+    // Default output name
+    const outputName = flags.output || 'output.pptx';
 
-  // Handle different commands
-  const command = positional[0];
+    // Handle different commands
+    const command = positional[0];
 
-  switch (command) {
-    case 'demo':
-      runDemo(flags, outputName);
-      break;
+    switch (command) {
+      case 'demo':
+        runDemo(flags, outputName);
+        break;
 
-    case 'inspect':
-      runInspect(positional);
-      break;
+      case 'inspect':
+        runInspect(positional);
+        break;
 
-    case 'create':
-      runCreate(flags, positional, outputName);
-      break;
+      case 'create':
+        runCreate(flags, positional, outputName);
+        break;
 
-    case 'replace':
-      runReplace(positional, outputName);
-      break;
+      case 'replace':
+        runReplace(positional, outputName);
+        break;
 
-    case 'generate':
-      runGenerate(flags, outputName);
-      break;
+      case 'generate':
+        runGenerate(flags, outputName);
+        break;
 
-    case 'template':
-      runTemplate(flags, positional, outputName);
-      break;
+      case 'template':
+        runTemplate(flags, positional, outputName);
+        break;
 
-    case 'bind':
-      runBind(flags);
-      break;
+      case 'bind':
+        runBind(flags);
+        break;
 
-    case 'export':
-      runExport(flags);
-      break;
+      case 'export':
+        runExport(flags);
+        break;
 
-    case 'delete-slide':
-      runDeleteSlide(flags, outputName);
-      break;
+      case 'delete-slide':
+        runDeleteSlide(flags, outputName);
+        break;
 
-    case 'duplicate-slide':
-      runDuplicateSlide(flags, outputName);
-      break;
+      case 'duplicate-slide':
+        runDuplicateSlide(flags, outputName);
+        break;
 
-    case 'move-slide':
-      runMoveSlide(flags, outputName);
-      break;
+      case 'move-slide':
+        runMoveSlide(flags, outputName);
+        break;
 
-    case 'slide-count':
-      runSlideCount(flags);
-      break;
+      case 'slide-count':
+        runSlideCount(flags);
+        break;
 
-    case 'replace-global':
-      runReplaceGlobal(flags, outputName);
-      break;
+      case 'replace-global':
+        runReplaceGlobal(flags, outputName);
+        break;
 
-    case 'set-background':
-      runSetBackground(flags, outputName);
-      break;
+      case 'set-background':
+        runSetBackground(flags, outputName);
+        break;
 
-    case 'add-image':
-      runAddImage(flags, outputName);
-      break;
+      case 'add-image':
+        runAddImage(flags, outputName);
+        break;
 
-    case 'add-slide':
-      runAddSlide(flags, outputName);
-      break;
+      case 'add-slide':
+        runAddSlide(flags, outputName);
+        break;
 
-    case 'help':
-    default:
-      printHelp();
+      case 'read-file':
+        runReadFile(flags);
+        break;
+
+      case 'write-file':
+        runWriteFile(flags);
+        break;
+
+      case 'edit-file':
+        runEditFile(flags);
+        break;
+
+      case 'grep':
+        runGrep(flags);
+        break;
+
+      case 'glob':
+        runGlob(flags);
+        break;
+
+      case 'list-dir':
+        runListDir(flags);
+        break;
+
+      case 'create-dir':
+        runCreateDir(flags);
+        break;
+
+      case 'help':
+      default:
+        printHelp();
+    }
   }
 }
 
@@ -764,6 +1143,13 @@ module.exports = {
   runSetBackground,
   runAddImage,
   runAddSlide,
+  runReadFile,
+  runWriteFile,
+  runEditFile,
+  runGrep,
+  runGlob,
+  runListDir,
+  runCreateDir,
 
   // Main function
   main

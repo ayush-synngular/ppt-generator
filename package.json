@@ -5,9 +5,10 @@
   "description": "A Node.js utility for generating PowerPoint presentations",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js help",
-    "test": "node test/presentation-tests.js"
-  },
+  "start": "node src/index.js help",
+  "test": "node test/presentation-tests.js",
+  "build": "rm -rf dist && mkdir -p dist && cp src/index.js dist/index.js"
+},
   "keywords": [
     "ppt",
     "presentation",
