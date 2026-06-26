@@ -50,10 +50,21 @@ function normalizeChartData(data = []) {
   }
 
   data.forEach(item => {
-    if (!item || typeof item !== 'object') return;
+    if (item === null || item === undefined) return;
 
-    labels.push(item.category !== undefined ? item.category : '');
-    values.push(typeof item.value === 'number' ? item.value : Number(item.value) || 0);
+    // Array-pair format: ["Jan", 10]
+    if (Array.isArray(item)) {
+      const [label, value] = item;
+      labels.push(label !== undefined ? label : '');
+      values.push(typeof value === 'number' ? value : Number(value) || 0);
+      return;
+    }
+
+    // Object format: { category: "Jan", value: 10 }
+    if (typeof item === 'object') {
+      labels.push(item.category !== undefined ? item.category : '');
+      values.push(typeof item.value === 'number' ? item.value : Number(item.value) || 0);
+    }
   });
 
   return { labels, values };
@@ -66,9 +77,10 @@ function buildChartOptions(options = {}) {
     w = 8,
     h = 4.5,
     title,
-    showLegend = false,
+    showLegend = true,
     showValue = false,
-    showCategoryName = false
+    showCategoryName = true,
+    showPercentage = true
   } = options;
 
   return {
@@ -85,7 +97,8 @@ function buildChartOptions(options = {}) {
     showLegend,
     legendPos: showLegend ? 'r' : undefined,
     showValue,
-    showLabel: showCategoryName
+    showLabel: showCategoryName,
+    showPercent: showPercentage
   };
 }
 
@@ -101,6 +114,24 @@ function createChartSeries(data = [], seriesName = 'Series 1') {
   ];
 }
 
+/**
+ * Builds category labels with each value's percentage share appended,
+ * e.g. "A" -> "A (40.0%)". Used so the legend (which pie charts draw
+ * from category labels) shows percentage composition per slice.
+ * @param {string[]} labels
+ * @param {number[]} values
+ * @returns {string[]}
+ */
+function buildPercentageLabels(labels, values) {
+  const total = values.reduce((sum, v) => sum + v, 0);
+
+  return labels.map((label, i) => {
+    const value = values[i];
+    const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+    return `${label} (${pct}%)`;
+  });
+}
+
 function addBarChart(slide, data, options = {}) {
   const chartData = createChartSeries(data, options.title || 'Series 1');
   const chartOptions = buildChartOptions(options);
@@ -114,7 +145,17 @@ function addLineChart(slide, data, options = {}) {
 }
 
 function addPieChart(slide, data, options = {}) {
-  const chartData = createChartSeries(data, options.title || 'Series 1');
+  const { labels, values } = normalizeChartData(data);
+  const percentageLabels = buildPercentageLabels(labels, values);
+
+  const chartData = [
+    {
+      name: options.title || 'Series 1',
+      labels: percentageLabels,
+      values
+    }
+  ];
+
   const chartOptions = buildChartOptions(options);
   return slide.addChart('pie', chartData, chartOptions);
 }

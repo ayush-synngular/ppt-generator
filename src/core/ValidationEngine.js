@@ -2,15 +2,12 @@
 
 /**
  * Validation engine for presentation configuration objects.
- *
- * This engine performs structural validation of presentation, slide, component,
- * and theme configurations to help detect invalid or incomplete data before a
- * presentation is generated.
  */
 class ValidationEngine {
   constructor() {
     this.supportedSlideTypes = [
       'title',
+      'title-slide', // FIXED: Added to align with SlideBuilder's exact map key
       'two-column',
       'comparison',
       'executive-summary',
@@ -26,11 +23,6 @@ class ValidationEngine {
     this.supportedTextComponents = ['title', 'text', 'bullet-list', 'metric-card', 'chart-card'];
   }
 
-  /**
-   * Validate a presentation configuration object.
-   * @param {Object} config - Presentation configuration.
-   * @returns {Object} Validation result.
-   */
   validatePresentation(config) {
     const errors = [];
     const warnings = [];
@@ -54,11 +46,6 @@ class ValidationEngine {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  /**
-   * Validate a slide configuration object.
-   * @param {Object} slideConfig - Slide configuration.
-   * @returns {Object} Validation result.
-   */
   validateSlide(slideConfig) {
     const errors = [];
     const warnings = [];
@@ -91,11 +78,6 @@ class ValidationEngine {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  /**
-   * Validate a component configuration object.
-   * @param {Object} componentConfig - Component configuration.
-   * @returns {Object} Validation result.
-   */
   validateComponent(componentConfig) {
     const errors = [];
     const warnings = [];
@@ -118,21 +100,22 @@ class ValidationEngine {
       }
     }
 
+    // FIXED: Ensured clear configuration path routing context to decouple explicit sub-property dependencies
     switch (type) {
       case 'chart': {
-        const chartResult = this.validateChart(componentConfig.chart || componentConfig);
+        const chartResult = this.validateChart(componentConfig.chart ? componentConfig.chart : componentConfig);
         chartResult.errors.forEach(error => errors.push(error));
         chartResult.warnings.forEach(warning => warnings.push(warning));
         break;
       }
       case 'table': {
-        const tableResult = this.validateTable(componentConfig.table || componentConfig);
+        const tableResult = this.validateTable(componentConfig.table ? componentConfig.table : componentConfig);
         tableResult.errors.forEach(error => errors.push(error));
         tableResult.warnings.forEach(warning => warnings.push(warning));
         break;
       }
       case 'image': {
-        const imageResult = this.validateImage(componentConfig.image || componentConfig);
+        const imageResult = this.validateImage(componentConfig.image ? componentConfig.image : componentConfig);
         imageResult.errors.forEach(error => errors.push(error));
         imageResult.warnings.forEach(warning => warnings.push(warning));
         break;
@@ -153,13 +136,6 @@ class ValidationEngine {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  /**
-   * Validate bounds values for a component or slide.
-   * @param {Object} component - Bounds object with x, y, w, h.
-   * @param {number} slideWidth - Slide width.
-   * @param {number} slideHeight - Slide height.
-   * @returns {Object} Validation result.
-   */
   validateBounds(component, slideWidth, slideHeight) {
     const errors = [];
     const warnings = [];
@@ -188,7 +164,7 @@ class ValidationEngine {
       errors.push('Bounds.h must be greater than 0.');
     }
 
-    if (typeof slideWidth === 'number' && typeof slideHeight === 'number') {
+    if (slideWidth > 0 && slideHeight > 0) {
       if (component.x + component.w > slideWidth) {
         errors.push('Bounds x+w must not exceed slide width.');
       }
@@ -200,11 +176,6 @@ class ValidationEngine {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  /**
-   * Validate chart configuration.
-   * @param {Object} chartConfig - Chart configuration.
-   * @returns {Object} Validation result.
-   */
   validateChart(chartConfig) {
     const errors = [];
     const warnings = [];
@@ -227,11 +198,6 @@ class ValidationEngine {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  /**
-   * Validate table configuration.
-   * @param {Object} tableConfig - Table configuration.
-   * @returns {Object} Validation result.
-   */
   validateTable(tableConfig) {
     const errors = [];
     const warnings = [];
@@ -248,11 +214,6 @@ class ValidationEngine {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  /**
-   * Validate image configuration.
-   * @param {Object} imageConfig - Image configuration.
-   * @returns {Object} Validation result.
-   */
   validateImage(imageConfig) {
     const errors = [];
     const warnings = [];
@@ -269,11 +230,6 @@ class ValidationEngine {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  /**
-   * Validate theme configuration.
-   * @param {Object} themeConfig - Theme configuration.
-   * @returns {Object} Validation result.
-   */
   validateTheme(themeConfig) {
     const errors = [];
     const warnings = [];
@@ -283,13 +239,7 @@ class ValidationEngine {
       return { valid: false, errors, warnings };
     }
 
-    const requiredColors = [
-      'primaryColor',
-      'secondaryColor',
-      'accentColor',
-      'backgroundColor',
-      'textColor'
-    ];
+    const requiredColors = ['primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor', 'textColor'];
     requiredColors.forEach(key => {
       if (!themeConfig[key] || typeof themeConfig[key] !== 'string') {
         errors.push(`Theme must include a valid ${key} string.`);

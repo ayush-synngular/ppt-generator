@@ -2,220 +2,141 @@
 
 const fs = require('fs');
 const path = require('path');
-const AdmZip = require('adm-zip');
-const xml2js = require('xml2js');
-const PresentationModel = require('./models/PresentationModel');
-const SlideModel = require('./models/SlideModel');
-const ShapeModel = require('./models/ShapeModel');
+const { execSync } = require('child_process');
 
+/**
+ * PptReader responsible for unpacking a compiled PPTX presentation 
+ * and building a clean, non-fragmented structured layout workspace.
+ */
 class PptReader {
   constructor() {
-    this.parser = new xml2js.Parser({
-      explicitArray: false,
-      ignoreAttrs: true,
-      trim: true,
-      normalizeTags: false,
-      normalize: true
-    });
+    this.utils = null;
   }
 
+  /**
+   * Reads and parses any PPTX file structure, merging text run pieces and stripping formatting tags.
+   * @param {string} filePath - Absolute path to the presentation asset
+   * @returns {Promise<Object>} The compiled import data model mapping slides dynamically
+   */
   async read(filePath) {
     if (!filePath || typeof filePath !== 'string') {
-      throw new Error('A valid file path is required for PptReader.read().');
+      throw new Error('PptReader.read requires a valid file path string.');
     }
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`PPTX file not found: ${filePath}`);
+    const absolutePath = path.resolve(filePath);
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Target presentation file asset not found at path: ${absolutePath}`);
     }
 
-    const zip = new AdmZip(filePath);
-    const presentation = new PresentationModel({ filePath });
+    // Create a unique temporary directory to extract presentation zip files safely
+    const tmpDirName = `pptx_unpack_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const tmpDir = path.join(process.cwd(), tmpDirName);
+    fs.mkdirSync(tmpDir, { recursive: true });
 
-    presentation.metadata = await this.extractMetadata(zip);
-    presentation.slides = await this.extractSlides(zip);
+    const slides = [];
 
-    return presentation;
-  }
-
-  async extractSlides(zip) {
-    const slideEntries = zip
-      .getEntries()
-      .filter((entry) => /^ppt\/slides\/slide\d+\.xml$/.test(entry.entryName))
-      .sort((a, b) => {
-        const aIndex = Number(a.entryName.match(/slide(\d+)\.xml$/)[1]);
-        const bIndex = Number(b.entryName.match(/slide(\d+)\.xml$/)[1]);
-        return aIndex - bIndex;
-      });
-
-    const slideModels = [];
-    for (let index = 0; index < slideEntries.length; index += 1) {
-      const entry = slideEntries[index];
-      const xml = entry.getData().toString('utf8');
-      const parsed = await this.parser.parseStringPromise(xml);
-      const text = this.extractText(parsed);
-      const shapes = this.extractShapes(parsed);
-      slideModels.push(new SlideModel({ slideNumber: index + 1, text, shapes }));
-    }
-
-    return slideModels;
-  }
-
-  extractText(parsedSlide) {
-    const textSegments = [];
-
-    const getParagraphText = (paragraph) => {
-      const pieces = [];
-
-      if (paragraph['a:r']) {
-        const runs = Array.isArray(paragraph['a:r']) ? paragraph['a:r'] : [paragraph['a:r']];
-        runs.forEach((run) => {
-          if (run['a:t']) {
-            pieces.push(run['a:t']);
-          }
-        });
-      }
-
-      if (paragraph['a:fld']) {
-        const fields = Array.isArray(paragraph['a:fld']) ? paragraph['a:fld'] : [paragraph['a:fld']];
-        fields.forEach((field) => {
-          if (field['a:t']) {
-            pieces.push(field['a:t']);
-          }
-        });
-      }
-
-      if (paragraph['a:t']) {
-        pieces.push(paragraph['a:t']);
-      }
-
-      return pieces
-        .filter((part) => typeof part === 'string' && part.trim() !== '')
-        .map((part) => part.trim())
-        .join(' ');
-    };
-
-    const scan = (node) => {
-      if (!node || typeof node !== 'object') {
-        return;
-      }
-
-      if (node['a:p']) {
-        const paragraphs = Array.isArray(node['a:p']) ? node['a:p'] : [node['a:p']];
-        paragraphs.forEach((paragraph) => {
-          const text = getParagraphText(paragraph);
-          if (text) {
-            textSegments.push(text);
-          }
-        });
-      }
-
-      Object.values(node).forEach((child) => {
-        if (child && typeof child === 'object') {
-          scan(child);
-        }
-      });
-    };
-
-    scan(parsedSlide);
-
-    return textSegments.filter((value, index, self) => typeof value === 'string' && value.trim() !== '' && self.indexOf(value) === index);
-  }
-
-  extractShapes(parsedSlide) {
-    const shapes = [];
-
-    const scan = (node) => {
-      if (!node || typeof node !== 'object') {
-        return;
-      }
-
-      if (node['p:sp'] && node['p:sp']['p:txBody']) {
-        const text = this.extractText(node['p:sp']['p:txBody']).join(' ');
-        shapes.push(new ShapeModel({ type: 'text', text, bounds: this.extractBounds(node['p:sp']) }));
-      }
-
-      if (node['p:pic']) {
-        shapes.push(new ShapeModel({ type: 'image', text: '', bounds: this.extractBounds(node['p:pic']) }));
-      }
-
-      Object.values(node).forEach((child) => {
-        if (typeof child === 'object') {
-          scan(child);
-        }
-      });
-    };
-
-    scan(parsedSlide);
-
-    return shapes;
-  }
-
-  extractBounds(shapeNode) {
-    if (!shapeNode || typeof shapeNode !== 'object') {
-      return {};
-    }
-
-    const xfrm = shapeNode['p:xfrm'] || shapeNode.xfrm || {};
-    const off = xfrm['a:off'] || xfrm.off || {};
-    const ext = xfrm['a:ext'] || xfrm.ext || {};
-    const x = parseInt(off.x, 10) || 0;
-    const y = parseInt(off.y, 10) || 0;
-    const cx = parseInt(ext.cx, 10) || 0;
-    const cy = parseInt(ext.cy, 10) || 0;
-
-    return { x, y, w: cx, h: cy };
-  }
-
-  async extractMetadata(zip) {
-    const metadata = {};
-    const coreEntry = zip.getEntry('docProps/core.xml');
-    const appEntry = zip.getEntry('docProps/app.xml');
-
-    if (coreEntry) {
-      try {
-        const coreXml = coreEntry.getData().toString('utf8');
-        const coreParsed = await this.parser.parseStringPromise(coreXml);
-        metadata.core = this.flattenMetadata(coreParsed.coreProperties || coreParsed);
-      } catch (error) {
-        metadata.core = { error: 'Unable to parse core metadata.' };
-      }
-    }
-
-    if (appEntry) {
-      try {
-        const appXml = appEntry.getData().toString('utf8');
-        const appParsed = await this.parser.parseStringPromise(appXml);
-        metadata.app = this.flattenMetadata(appParsed.Properties || appParsed);
-      } catch (error) {
-        metadata.app = { error: 'Unable to parse app metadata.' };
-      }
-    }
-
-    return metadata;
-  }
-
-  flattenMetadata(node) {
-    if (!node || typeof node !== 'object') {
-      return node;
-    }
-
-    const result = {};
-
-    Object.entries(node).forEach(([key, value]) => {
-      if (key === 'xmlns' || key === 'xmlns:cp' || key === 'xmlns:dc' || key === 'xmlns:dcmitype' || key === 'xmlns:xsi') {
-        return;
-      }
-
-      if (typeof value === 'object' && value.hasOwnProperty('_')) {
-        result[key] = value['_'];
-      } else if (typeof value === 'string') {
-        result[key] = value;
+    try {
+      // Unpack the file using standard system extraction tools
+      if (process.platform === 'win32') {
+        execSync(`powershell -Command "Expand-Archive -Path '${absolutePath}' -DestinationPath '${tmpDir}'"`, { stdio: 'ignore' });
       } else {
-        result[key] = value;
+        execSync(`unzip -q "${absolutePath}" -d "${tmpDir}"`, { stdio: 'ignore' });
       }
-    });
 
-    return result;
+      const slidesPath = path.join(tmpDir, 'ppt', 'slides');
+      if (!fs.existsSync(slidesPath)) {
+        throw new Error('Invalid presentation structure: missing slide definitions directory.');
+      }
+
+      // Read every individual slide document file inside the zip directory stream
+      const slideFiles = fs.readdirSync(slidesPath)
+        .filter(file => file.startsWith('slide') && file.endsWith('.xml'))
+        .sort((a, b) => {
+          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10);
+          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10);
+          return numA - numB;
+        });
+
+      slideFiles.forEach((slideFile) => {
+        const slideXmlPath = path.join(slidesPath, slideFile);
+        const xmlContent = fs.readFileSync(slideXmlPath, 'utf8');
+
+        const slideShapes = [];
+
+        // 1. PARAGRAPH EXTRACTOR: Isolate full text blocks (<a:p>...</a:p>) to preserve sentence integrity
+        const paragraphRegex = /<a:p[\s\S]*?>([\s\S]*?)<\/a:p>/g;
+        let paragraphMatch;
+
+        while ((paragraphMatch = paragraphRegex.exec(xmlContent)) !== null) {
+          const paragraphInnerXml = paragraphMatch[1];
+          
+          // Gather all text fragments (<a:t>...</a:t>) residing inside this specific paragraph block
+          const textRunRegex = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
+          let textRunMatch;
+          let compiledParagraphText = '';
+
+          while ((textRunMatch = textRunRegex.exec(paragraphInnerXml)) !== null) {
+            compiledParagraphText += textRunMatch[1];
+          }
+
+          // FIX: Deeply sanitize the extracted text block by removing any residual embedded inline xml layout tags
+          compiledParagraphText = compiledParagraphText
+            .replace(/<[^>]+>/g, '') // Strips out any leaking structural markers completely
+            .replace(/&apos;/g, "'")
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          // Only commit meaningful text elements to our workspace model
+          if (compiledParagraphText.length > 0) {
+            slideShapes.push({
+              text: compiledParagraphText,
+              // Establish baseline heuristics for layout metrics mapping
+              fontSize: slideShapes.length === 0 ? 28 : 16,
+              bold: slideShapes.length === 0,
+              y: slideShapes.length === 0 ? 0.6 : 2.0
+            });
+          }
+        }
+
+        // 2. CONTEXTUAL SLIDE HEADER INTERCEPTOR
+        let detectedTitle = null;
+        if (slideShapes.length > 0) {
+          // Promote the first paragraph to slide title if it fits header style parameters
+          const primaryBlock = slideShapes[0];
+          if (primaryBlock.text.length < 100) { 
+            detectedTitle = primaryBlock.text;
+          }
+        }
+
+        const currentSlideNumber = slides.length + 1;
+        const finalCalculatedTitle = detectedTitle || `Slide ${currentSlideNumber}`;
+
+        slides.push({
+          slideNumber: currentSlideNumber,
+          title: finalCalculatedTitle,
+          shapes: slideShapes
+        });
+      });
+
+      return {
+        filePath: absolutePath,
+        slides
+      };
+
+    } catch (err) {
+      throw new Error(`Failed parsing target presentation structures dynamically: ${err.message}`);
+    } finally {
+      // Cleanup workspace directory cache paths
+      if (fs.existsSync(tmpDir)) {
+        try {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch (e) {
+          // Guard silent cleanup failures
+        }
+      }
+    }
   }
 }
 

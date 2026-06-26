@@ -7,24 +7,6 @@
  * - title-slide
  * - two-column
  * - comparison
- *
- * Config schema:
- * {
- *   slides: [
- *     { type: 'title-slide', title: 'Welcome', subtitle: 'Demo' },
- *     {
- *       type: 'two-column',
- *       title: 'Overview',
- *       leftContent: ['Point 1', 'Point 2'],
- *       rightContent: ['Point A', 'Point B']
- *     }
- *   ]
- * }
- *
- * Error behavior:
- * - Throws when the top-level config is invalid.
- * - Throws when a slide object is missing a valid type.
- * - Throws for unknown slide types.
  */
 const { createTitleSlide } = require('../layouts/title-slide');
 const { createTwoColumnSlide } = require('../layouts/two-column');

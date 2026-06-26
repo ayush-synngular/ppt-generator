@@ -2,11 +2,6 @@
 
 /**
  * DataBinder supports token replacement in template configuration objects.
- *
- * Supported token syntax:
- * - {{company}}
- * - {{revenue}}
- * - {{metrics.totalRevenue}}
  */
 class DataBinder {
   /**
@@ -32,7 +27,8 @@ class DataBinder {
         return undefined;
       }
 
-      if (Array.isArray(value) && /^\\d+$/.test(part)) {
+      // FIXED: Corrected the regex from double escape to single escape digit match
+      if (Array.isArray(value) && /^\d+$/.test(part)) {
         value = value[Number(part)];
       } else {
         value = value[part];

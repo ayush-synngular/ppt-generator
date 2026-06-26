@@ -1,6 +1,46 @@
-node_modules/
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+.nyc_output
+
+# Output files
 *.pptx
-*.log
+*.json
+
+# Runtime data
+/presentation-output/
+
+# Distribution
+/dist
+/build
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
 .env
-coverage/
-dist/
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Editor
+*~
+*.bak
+*.old

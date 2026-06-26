@@ -1,18 +1,25 @@
 {
-  "title": "AI Report Presentation",
-  "template": "default",
+  "theme": {
+    "headingFont": "Arial",
+    "bodyFont": "Calibri"
+  },
   "slides": [
     {
-      "title": "Executive Summary",
-      "content": "This presentation covers the latest findings in AI research and development."
+      "type": "title-slide",
+      "title": "Master Showcase Demo",
+      "subtitle": "Generated via SlideBuilder Data Binder"
     },
     {
-      "title": "Key Findings",
-      "content": "1. Machine learning models are becoming more accurate\n2. Natural language processing has improved significantly\n3. Computer vision applications are expanding rapidly"
-    },
-    {
-      "title": "Future Outlook",
-      "content": "The future of AI looks promising with continued advancements in neural networks and quantum computing integration."
+      "type": "two-column",
+      "title": "Data Breakdown",
+      "leftColumn": {
+        "title": "Pros",
+        "text": "Automated pipelines\nJSON Validation\nComponent integration"
+      },
+      "rightColumn": {
+        "title": "Cons",
+        "text": "Requires strict JSON schemas"
+      }
     }
   ]
 }
