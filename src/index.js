@@ -65,6 +65,10 @@ const AutoLayoutEngine = require('./core/AutoLayoutEngine');
 
 const fs = require('fs');
 
+// PptModifier — direct zip-level editing of existing PPTX files
+const PptModifier = require('./import/PptModifier');
+const PptReader   = require('./import/PptReader');
+
 /**
  * Parse command line arguments
  * @param {string[]} args - Command line arguments
@@ -122,6 +126,16 @@ function printHelp() {
   console.log('  template <template-type> --data <data.json> [--output <file.pptx>]');
   console.log('  bind --template <template.json> --data <data.json> [--output <bound.json>]');
   console.log('  export --input <file.pptx> --format json|xml [--output <file.ext>]');
+  console.log('');
+  console.log('Slide Editing Commands (operate on existing PPTX files):');
+  console.log('  delete-slide --input <file.pptx> --slide <n> [--output <file.pptx>]');
+  console.log('  duplicate-slide --input <file.pptx> --slide <n> [--output <file.pptx>]');
+  console.log('  move-slide --input <file.pptx> --from <n> --to <n> [--output <file.pptx>]');
+  console.log('  slide-count --input <file.pptx>');
+  console.log('  replace-global --input <file.pptx> --old "text" --new "text" [--flags gi] [--output <file.pptx>]');
+  console.log('  set-background --input <file.pptx> --slide <n> --color <hex> [--output <file.pptx>]');
+  console.log('  add-image --input <file.pptx> --slide <n> --path <img> [--x n] [--y n] [--w n] [--h n] [--output <file.pptx>]');
+  console.log('  add-slide --input <file.pptx> --text "content" [--x n] [--y n] [--w n] [--h n] [--fontSize n] [--color hex] [--bold true] [--align left|center|right] [--fontFace name] [--output <file.pptx>]');
   console.log('  help');
   console.log('');
   console.log('Component Types:');
@@ -134,6 +148,14 @@ function printHelp() {
   console.log('  node src/index.js create text --title "Hello World" --content "This is content" --output hello.pptx');
   console.log('  node src/index.js create chart --type bar --data \'[["Jan", 10], ["Feb", 20]]\' --output chart.pptx');
   console.log('  node src/index.js template executive-summary --data data.json --output summary.pptx');
+  console.log('  node src/index.js delete-slide --input ai-edu.pptx --slide 5 --output ai-edu-updated.pptx');
+  console.log('  node src/index.js duplicate-slide --input ai-edu.pptx --slide 2 --output ai-edu-updated.pptx');
+  console.log('  node src/index.js move-slide --input ai-edu.pptx --from 3 --to 1 --output ai-edu-updated.pptx');
+  console.log('  node src/index.js slide-count --input ai-edu.pptx');
+  console.log('  node src/index.js replace-global --input ai-edu.pptx --old "AI" --new "Artificial Intelligence" --flags gi --output ai-edu-updated.pptx');
+  console.log('  node src/index.js set-background --input ai-edu.pptx --slide 1 --color FF0000 --output ai-edu-updated.pptx');
+  console.log('  node src/index.js add-image --input ai-edu.pptx --slide 1 --path logo.png --x 0.5 --y 0.5 --w 3 --h 2 --output ai-edu-updated.pptx');
+  console.log('  node src/index.js add-slide --input ai-edu.pptx --text "New Slide Content" --output ai-edu-updated.pptx');
   console.log('================================================================');
 }
 
@@ -422,6 +444,152 @@ function runExport(flags) {
     .catch(err => console.error(`❌ Export error: ${err.message}`));
 }
 
+// -------------------------------------------------------------------
+// Shared helper: open a PPTX via PptReader, run a modifier callback,
+// then save to outputName. Keeps all new handlers DRY.
+// -------------------------------------------------------------------
+async function withModifier(inputFile, outputName, fn) {
+  if (!inputFile) {
+    console.error('❌ Missing --input <file.pptx>');
+    process.exit(1);
+  }
+  if (!require('fs').existsSync(inputFile)) {
+    console.error(`❌ Input file not found: ${inputFile}`);
+    process.exit(1);
+  }
+  try {
+    const presentation = await new PptReader().read(inputFile);
+    const modifier = new PptModifier(presentation);
+    await fn(modifier);
+    await modifier.save(outputName);
+    console.log(`🎉 Done. Saved to: ${outputName}`);
+  } catch (err) {
+    console.error(`❌ Error: ${err.message}`);
+  }
+}
+
+function runDeleteSlide(flags, outputName) {
+  const slideNumber = parseInt(flags.slide);
+  if (!slideNumber || slideNumber < 1) {
+    console.error('❌ Missing or invalid --slide <n> (must be integer >= 1).');
+    process.exit(1);
+  }
+  withModifier(flags.input, outputName, (modifier) => {
+    modifier.deleteSlide(slideNumber);
+  });
+}
+
+function runDuplicateSlide(flags, outputName) {
+  const slideNumber = parseInt(flags.slide);
+  if (!slideNumber || slideNumber < 1) {
+    console.error('❌ Missing or invalid --slide <n> (must be integer >= 1).');
+    process.exit(1);
+  }
+  withModifier(flags.input, outputName, (modifier) => {
+    modifier.duplicateSlide(slideNumber);
+  });
+}
+
+function runMoveSlide(flags, outputName) {
+  const from = parseInt(flags.from);
+  const to   = parseInt(flags.to);
+  if (!from || from < 1 || !to || to < 1) {
+    console.error('❌ Missing or invalid --from <n> and/or --to <n> (must be integers >= 1).');
+    process.exit(1);
+  }
+  withModifier(flags.input, outputName, (modifier) => {
+    modifier.moveSlide(from, to);
+  });
+}
+
+async function runSlideCount(flags) {
+  const inputFile = flags.input;
+  if (!inputFile) {
+    console.error('❌ Missing --input <file.pptx>');
+    process.exit(1);
+  }
+  if (!require('fs').existsSync(inputFile)) {
+    console.error(`❌ Input file not found: ${inputFile}`);
+    process.exit(1);
+  }
+  try {
+    const presentation = await new PptReader().read(inputFile);
+    const modifier = new PptModifier(presentation);
+    console.log(`📊 Slide count: ${modifier.getSlideCount()}`);
+  } catch (err) {
+    console.error(`❌ Error: ${err.message}`);
+  }
+}
+
+function runReplaceGlobal(flags, outputName) {
+  const oldText = flags.old;
+  const newText = flags.new;
+  if (!oldText || newText === undefined) {
+    console.error('❌ Missing --old "text" and/or --new "text".');
+    process.exit(1);
+  }
+  const regexFlags = flags.flags || 'g';
+  withModifier(flags.input, outputName, (modifier) => {
+    modifier.replaceTextGlobal(oldText, newText, regexFlags);
+  });
+}
+
+function runSetBackground(flags, outputName) {
+  const slideNumber = parseInt(flags.slide);
+  const color = flags.color;
+  if (!slideNumber || slideNumber < 1) {
+    console.error('❌ Missing or invalid --slide <n> (must be integer >= 1).');
+    process.exit(1);
+  }
+  if (!color) {
+    console.error('❌ Missing --color <hex> (e.g. FF0000 or #FF0000).');
+    process.exit(1);
+  }
+  withModifier(flags.input, outputName, (modifier) => {
+    modifier.setSlideBackground(slideNumber, color);
+  });
+}
+
+function runAddImage(flags, outputName) {
+  const slideNumber = parseInt(flags.slide);
+  const imagePath   = flags.path;
+  if (!slideNumber || slideNumber < 1) {
+    console.error('❌ Missing or invalid --slide <n> (must be integer >= 1).');
+    process.exit(1);
+  }
+  if (!imagePath) {
+    console.error('❌ Missing --path <image-file>.');
+    process.exit(1);
+  }
+  const opts = {
+    x: parseFloat(flags.x) || 0.5,
+    y: parseFloat(flags.y) || 0.5,
+    w: parseFloat(flags.w) || 3,
+    h: parseFloat(flags.h) || 2,
+  };
+  withModifier(flags.input, outputName, (modifier) => {
+    modifier.addImageToSlide(slideNumber, imagePath, opts);
+  });
+}
+
+function runAddSlide(flags, outputName) {
+  const text = flags.text !== undefined ? flags.text : '';
+  const opts = {
+    x:        parseFloat(flags.x)        || 0.5,
+    y:        parseFloat(flags.y)        || 0.5,
+    w:        parseFloat(flags.w)        || 9,
+    h:        parseFloat(flags.h)        || 1,
+    fontSize: parseFloat(flags.fontSize) || 24,
+    color:    flags.color                || '000000',
+    bold:     flags.bold === 'true',
+    align:    flags.align                || 'left',
+    fontFace: flags.fontFace             || 'Arial',
+  };
+  withModifier(flags.input, outputName, (modifier) => {
+    modifier.addSlide(text, opts);
+  });
+}
+
 /**
  * Main execution function
  * This function handles CLI commands and can be called programmatically
@@ -470,6 +638,38 @@ function main() {
       runExport(flags);
       break;
 
+    case 'delete-slide':
+      runDeleteSlide(flags, outputName);
+      break;
+
+    case 'duplicate-slide':
+      runDuplicateSlide(flags, outputName);
+      break;
+
+    case 'move-slide':
+      runMoveSlide(flags, outputName);
+      break;
+
+    case 'slide-count':
+      runSlideCount(flags);
+      break;
+
+    case 'replace-global':
+      runReplaceGlobal(flags, outputName);
+      break;
+
+    case 'set-background':
+      runSetBackground(flags, outputName);
+      break;
+
+    case 'add-image':
+      runAddImage(flags, outputName);
+      break;
+
+    case 'add-slide':
+      runAddSlide(flags, outputName);
+      break;
+
     case 'help':
     default:
       printHelp();
@@ -493,6 +693,10 @@ module.exports = {
   ValidationEngine,
   DataBinder,
   ExportUtils,
+
+  // Import / modifier
+  PptModifier,
+  PptReader,
 
   // Layouts
   createTitleSlide,
@@ -550,6 +754,16 @@ module.exports = {
   // Helper functions
   parseArgs,
   validateRequiredParams,
+
+  // CLI handlers (also usable programmatically)
+  runDeleteSlide,
+  runDuplicateSlide,
+  runMoveSlide,
+  runSlideCount,
+  runReplaceGlobal,
+  runSetBackground,
+  runAddImage,
+  runAddSlide,
 
   // Main function
   main

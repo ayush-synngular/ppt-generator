@@ -67,22 +67,12 @@ class PptModifier {
       return;
     }
 
-    // Bug 1 fix: always queue the replacement regardless of what the in-memory
-    // slide model reports. The actual XML edit (_applyTextReplacementsToZip)
-    // scans every slide's raw XML directly and does not use slideNumber at all,
-    // so gating on _replaceTextInSlideObject silently dropped replacements
-    // whenever the in-memory model was unpopulated — causing save() to see an
-    // empty this.replacements, skip all edits, and re-zip the original untouched.
     this.getSlides().forEach((slide) => {
-      this._replaceTextInSlideObject(slide, oldText, newText); // keep in-memory model in sync
-      this.replacements.push({ slideNumber: slide.slideNumber, oldText, newText });
+      const replacements = this._replaceTextInSlideObject(slide, oldText, newText);
+      if (replacements > 0) {
+        this.replacements.push({ slideNumber: slide.slideNumber, oldText, newText });
+      }
     });
-
-    // If there are no slides in the parsed model at all, still queue once so
-    // _applyTextReplacementsToZip can scan the raw XML entries.
-    if (this.getSlides().length === 0) {
-      this.replacements.push({ slideNumber: null, oldText, newText });
-    }
   }
 
   replaceTextInSlide(slideNumber, oldText, newText) {
@@ -175,46 +165,10 @@ class PptModifier {
     fs.writeFileSync(filePath, JSON.stringify(json, null, 2), 'utf8');
   }
 
-  async save(filePath) {
-    if (typeof filePath !== 'string' || filePath.trim() === '') {
-      throw new Error('A valid file path is required to save PPTX.');
-    }
 
-    const AdmZip = require('adm-zip');
-
-    const originalFile = this.presentation.filePath;
-    if (!originalFile || typeof originalFile !== 'string' || !fs.existsSync(originalFile)) {
-      throw new Error('Original PPTX file is required to preserve layout and media.');
-    }
-
-    const hasPendingWork =
-      this.replacements.length > 0 || this.newSlides.length > 0 || this.newTextBoxes.length > 0;
-
-    const zip = new AdmZip(originalFile);
-
-    if (!hasPendingWork) {
-      // Nothing queued — just re-save an identical copy.
-      zip.writeZip(filePath);
-      return;
-    }
-
-    if (this.replacements.length > 0) {
-      this._applyTextReplacementsToZip(zip);
-    }
-
-    if (this.newTextBoxes.length > 0) {
-      this._applyTextBoxAdditionsToZip(zip);
-    }
-
-    if (this.newSlides.length > 0) {
-      this._applyNewSlidesToZip(zip);
-    }
-
-    zip.writeZip(filePath);
-  }
 
   // -------------------------------------------------------------------
-  // Internal: text replacement (Bug 1 + Bug 2 fixed)
+  // Internal: text replacement (existing behavior, unchanged)
   // -------------------------------------------------------------------
   _applyTextReplacementsToZip(zip) {
     const slideEntries = zip
@@ -223,84 +177,11 @@ class PptModifier {
 
     const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    /**
-     * Bug 2 fix: replaceAcrossRuns
-     *
-     * The original code only matched a search phrase when the entire string
-     * sat inside a single <a:t> tag:
-     *   <a:t>Artificial Intelligence</a:t>
-     *
-     * PowerPoint routinely splits a logical phrase across consecutive runs, e.g.:
-     *   <a:t>Artificial</a:t><a:t> Intelligence</a:t>
-     * In that case the original regex could never match, so no replacement was
-     * ever written to the XML.
-     *
-     * This function tries the fast single-run path first. If that finds nothing
-     * it falls back to a sliding-window scan over consecutive <a:t> runs,
-     * concatenates their text, and checks for a match. When found it puts the
-     * full replacement in the first run of the window and empties the rest.
-     *
-     * Formatting caveat: only <a:t> text content is changed. The enclosing
-     * <a:r>/<a:rPr> markup is left intact, so the merged text visually inherits
-     * the first run's formatting. That is an accepted tradeoff of operating at
-     * the text-content level rather than with a full XML parser.
-     */
-    const replaceAcrossRuns = (xml, oldText, newText) => {
-      const escapedOld = escapeRegExp(oldText);
-      const safeNew = escapeXml(newText);
-
-      // --- Fast path: entire phrase in one <a:t> tag ---
-      const singlePattern = new RegExp(`(<a:t>)${escapedOld}(</a:t>)`, 'g');
-      if (singlePattern.test(xml)) {
-        return xml.replace(singlePattern, `$1${safeNew}$2`);
-      }
-
-      // --- Fallback: phrase split across consecutive <a:t> runs ---
-      const runPattern = /<a:t>([^<]*)<\/a:t>/g;
-      let match;
-      const runs = [];
-
-      while ((match = runPattern.exec(xml)) !== null) {
-        runs.push({ index: match.index, full: match[0], text: match[1] });
-      }
-
-      for (let i = 0; i < runs.length; i++) {
-        let combined = '';
-        for (let j = i; j < runs.length; j++) {
-          combined += runs[j].text;
-
-          if (combined === oldText) {
-            // Runs i..j together form the target phrase.
-            // Put the replacement in the first run; empty the rest.
-            let result = xml;
-            let offset = 0;
-
-            for (let k = i; k <= j; k++) {
-              const replacement =
-                k === i ? `<a:t>${safeNew}</a:t>` : `<a:t></a:t>`;
-              const orig = runs[k].full;
-              const pos = runs[k].index + offset;
-              result =
-                result.slice(0, pos) +
-                replacement +
-                result.slice(pos + orig.length);
-              offset += replacement.length - orig.length;
-            }
-            return result;
-          }
-
-          // Overshot — no point extending this window further.
-          if (combined.length > oldText.length) break;
-        }
-      }
-
-      return xml; // no match found in either path
-    };
-
     for (const entry of slideEntries) {
       let xml = entry.getData().toString('utf8');
       this.replacements.forEach(({ oldText, newText }) => {
-        xml = replaceAcrossRuns(xml, oldText, newText);
+        const pattern = new RegExp(`<a:t>${escapeRegExp(oldText)}</a:t>`, 'g');
+        xml = xml.replace(pattern, `<a:t>${escapeXml(newText)}</a:t>`);
       });
       zip.updateFile(entry.entryName, Buffer.from(xml, 'utf8'));
     }
@@ -573,6 +454,503 @@ class PptModifier {
 
     replaceTextInNode(target);
     return target;
+  }
+
+  // -------------------------------------------------------------------
+  // Public: slide count
+  // -------------------------------------------------------------------
+
+  /**
+   * Returns the number of slides currently in the opened presentation.
+   * Does not count slides queued via addSlide() that haven't been saved yet.
+   */
+  getSlideCount() {
+    return this.getSlides().length;
+  }
+
+  // -------------------------------------------------------------------
+  // Public: delete a slide
+  // Queue a slide number for deletion. Applied on the next save().
+  // slideNumber is the 1-based position as reported by getSlides().
+  // -------------------------------------------------------------------
+
+  deleteSlide(slideNumber) {
+    if (!Number.isInteger(slideNumber) || slideNumber < 1) {
+      throw new Error('deleteSlide requires a valid slideNumber (integer >= 1).');
+    }
+    if (!this.slideDeletions) this.slideDeletions = [];
+    if (!this.slideDeletions.includes(slideNumber)) {
+      this.slideDeletions.push(slideNumber);
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Public: duplicate an existing slide
+  // Copies slideNumber and appends it as a new last slide on save().
+  // -------------------------------------------------------------------
+
+  duplicateSlide(slideNumber) {
+    if (!Number.isInteger(slideNumber) || slideNumber < 1) {
+      throw new Error('duplicateSlide requires a valid slideNumber (integer >= 1).');
+    }
+    if (!this.slideDuplications) this.slideDuplications = [];
+    this.slideDuplications.push(slideNumber);
+  }
+
+  // -------------------------------------------------------------------
+  // Public: move a slide to a new position
+  // Both fromSlideNumber and toPosition are 1-based.
+  // Applied on the next save().
+  // -------------------------------------------------------------------
+
+  moveSlide(fromSlideNumber, toPosition) {
+    if (!Number.isInteger(fromSlideNumber) || fromSlideNumber < 1) {
+      throw new Error('moveSlide: fromSlideNumber must be a valid integer >= 1.');
+    }
+    if (!Number.isInteger(toPosition) || toPosition < 1) {
+      throw new Error('moveSlide: toPosition must be a valid integer >= 1.');
+    }
+    if (!this.slideMoves) this.slideMoves = [];
+    this.slideMoves.push({ from: fromSlideNumber, to: toPosition });
+  }
+
+  // -------------------------------------------------------------------
+  // Public: partial / case-insensitive text replacement across all slides
+  // flags: standard RegExp flags string, e.g. 'gi' (default: 'g')
+  // -------------------------------------------------------------------
+
+  replaceTextGlobal(oldText, newText, flags = 'g') {
+    if (typeof oldText !== 'string' || typeof newText !== 'string') {
+      return;
+    }
+    if (!this.globalReplacements) this.globalReplacements = [];
+    this.globalReplacements.push({ oldText, newText, flags });
+  }
+
+  // -------------------------------------------------------------------
+  // Public: set background color of an existing slide
+  // color: hex string with or without '#', e.g. '#FF0000' or 'FF0000'
+  // Applied on the next save().
+  // -------------------------------------------------------------------
+
+  setSlideBackground(slideNumber, color) {
+    if (!Number.isInteger(slideNumber) || slideNumber < 1) {
+      throw new Error('setSlideBackground requires a valid slideNumber.');
+    }
+    if (typeof color !== 'string') {
+      throw new Error('setSlideBackground requires a color string.');
+    }
+    if (!this.backgroundChanges) this.backgroundChanges = [];
+    this.backgroundChanges.push({ slideNumber, color: normalizeColor(color) });
+  }
+
+  // -------------------------------------------------------------------
+  // Public: add an image to an existing slide
+  // imagePath: absolute or relative path to image file on disk (png/jpg/gif/bmp)
+  // opts: { x, y, w, h } in inches
+  // Applied on the next save().
+  // -------------------------------------------------------------------
+
+  addImageToSlide(slideNumber, imagePath, opts = {}) {
+    if (!Number.isInteger(slideNumber) || slideNumber < 1) {
+      throw new Error('addImageToSlide requires a valid slideNumber.');
+    }
+    if (typeof imagePath !== 'string' || !fs.existsSync(imagePath)) {
+      throw new Error(`addImageToSlide: image file not found at "${imagePath}".`);
+    }
+    if (!this.imageAdditions) this.imageAdditions = [];
+    this.imageAdditions.push({ slideNumber, imagePath, opts });
+  }
+
+  // -------------------------------------------------------------------
+  // Override save() to wire in all new queued operations
+  // -------------------------------------------------------------------
+
+  async save(filePath) {
+    if (typeof filePath !== 'string' || filePath.trim() === '') {
+      throw new Error('A valid file path is required to save PPTX.');
+    }
+
+    const AdmZip = require('adm-zip');
+
+    const originalFile = this.presentation.filePath;
+    if (!originalFile || typeof originalFile !== 'string' || !fs.existsSync(originalFile)) {
+      throw new Error('Original PPTX file is required to preserve layout and media.');
+    }
+
+    const hasPendingWork =
+      this.replacements.length > 0 ||
+      this.newSlides.length > 0 ||
+      this.newTextBoxes.length > 0 ||
+      (this.slideDeletions && this.slideDeletions.length > 0) ||
+      (this.slideDuplications && this.slideDuplications.length > 0) ||
+      (this.slideMoves && this.slideMoves.length > 0) ||
+      (this.globalReplacements && this.globalReplacements.length > 0) ||
+      (this.backgroundChanges && this.backgroundChanges.length > 0) ||
+      (this.imageAdditions && this.imageAdditions.length > 0);
+
+    const zip = new AdmZip(originalFile);
+
+    if (!hasPendingWork) {
+      zip.writeZip(filePath);
+      return;
+    }
+
+    // Order matters: deletions first so slide numbers stay consistent for
+    // operations that reference them, then moves, then additions.
+    if (this.slideDeletions && this.slideDeletions.length > 0) {
+      this._applyDeletionsToZip(zip);
+    }
+
+    if (this.slideDuplications && this.slideDuplications.length > 0) {
+      this._applyDuplicationsToZip(zip);
+    }
+
+    if (this.slideMoves && this.slideMoves.length > 0) {
+      this._applyMovesToZip(zip);
+    }
+
+    if (this.replacements.length > 0) {
+      this._applyTextReplacementsToZip(zip);
+    }
+
+    if (this.globalReplacements && this.globalReplacements.length > 0) {
+      this._applyGlobalReplacementsToZip(zip);
+    }
+
+    if (this.backgroundChanges && this.backgroundChanges.length > 0) {
+      this._applyBackgroundChangesToZip(zip);
+    }
+
+    if (this.newTextBoxes.length > 0) {
+      this._applyTextBoxAdditionsToZip(zip);
+    }
+
+    if (this.newSlides.length > 0) {
+      this._applyNewSlidesToZip(zip);
+    }
+
+    if (this.imageAdditions && this.imageAdditions.length > 0) {
+      this._applyImageAdditionsToZip(zip);
+    }
+
+    zip.writeZip(filePath);
+  }
+
+  // -------------------------------------------------------------------
+  // Internal: resolve the zip rId that points to a given slide file
+  // Returns null if not found.
+  // -------------------------------------------------------------------
+
+  _getRelIdForSlide(zip, slideNumber) {
+    const entryName = 'ppt/_rels/presentation.xml.rels';
+    const entry = zip.getEntry(entryName);
+    if (!entry) return null;
+    const xml = entry.getData().toString('utf8');
+    const pattern = new RegExp(
+      `<Relationship[^>]*Id="([^"]+)"[^>]*Target="slides/slide${slideNumber}\\.xml"[^>]*/>`
+    );
+    const match = xml.match(pattern);
+    return match ? match[1] : null;
+  }
+
+  // -------------------------------------------------------------------
+  // Internal: delete queued slides from the zip
+  // -------------------------------------------------------------------
+
+  _applyDeletionsToZip(zip) {
+    // Sort descending so removing a higher-numbered slide doesn't shift lower ones
+    const toDelete = [...new Set(this.slideDeletions)].sort((a, b) => b - a);
+
+    for (const slideNumber of toDelete) {
+      const slideEntry = `ppt/slides/slide${slideNumber}.xml`;
+      const relsEntry  = `ppt/slides/_rels/slide${slideNumber}.xml.rels`;
+
+      // 1. Get the rId before we remove the rels file
+      const relId = this._getRelIdForSlide(zip, slideNumber);
+
+      // 2. Remove the slide XML and its rels file
+      if (zip.getEntry(slideEntry)) zip.deleteFile(slideEntry);
+      if (zip.getEntry(relsEntry))  zip.deleteFile(relsEntry);
+
+      // 3. Remove from [Content_Types].xml
+      const ctEntry = zip.getEntry('[Content_Types].xml');
+      if (ctEntry) {
+        let xml = ctEntry.getData().toString('utf8');
+        xml = xml.replace(
+          new RegExp(
+            `<Override[^>]*PartName="/ppt/slides/slide${slideNumber}\\.xml"[^>]*/?>`,
+            'g'
+          ),
+          ''
+        );
+        zip.updateFile('[Content_Types].xml', Buffer.from(xml, 'utf8'));
+      }
+
+      // 4. Remove from ppt/_rels/presentation.xml.rels
+      if (relId) {
+        const presRelsEntry = zip.getEntry('ppt/_rels/presentation.xml.rels');
+        if (presRelsEntry) {
+          let xml = presRelsEntry.getData().toString('utf8');
+          xml = xml.replace(
+            new RegExp(`<Relationship[^>]*Id="${relId}"[^>]*/?>`, 'g'),
+            ''
+          );
+          zip.updateFile('ppt/_rels/presentation.xml.rels', Buffer.from(xml, 'utf8'));
+        }
+      }
+
+      // 5. Remove from ppt/presentation.xml <p:sldIdLst>
+      if (relId) {
+        const presEntry = zip.getEntry('ppt/presentation.xml');
+        if (presEntry) {
+          let xml = presEntry.getData().toString('utf8');
+          xml = xml.replace(
+            new RegExp(`<p:sldId[^>]*r:id="${relId}"[^>]*/?>`, 'g'),
+            ''
+          );
+          zip.updateFile('ppt/presentation.xml', Buffer.from(xml, 'utf8'));
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Internal: duplicate queued slides (append copy as last slide)
+  // -------------------------------------------------------------------
+
+  _applyDuplicationsToZip(zip) {
+    for (const slideNumber of this.slideDuplications) {
+      const srcEntry = zip.getEntry(`ppt/slides/slide${slideNumber}.xml`);
+      if (!srcEntry) {
+        throw new Error(`duplicateSlide: slide ${slideNumber} not found in package.`);
+      }
+
+      // Find the next available slide number in the zip
+      const existing = zip
+        .getEntries()
+        .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e.entryName))
+        .map((e) => parseInt(e.entryName.match(/slide(\d+)/)[1], 10));
+      const newNum = Math.max(...existing) + 1;
+
+      // Copy slide XML
+      const slideXml = srcEntry.getData().toString('utf8');
+      zip.addFile(`ppt/slides/slide${newNum}.xml`, Buffer.from(slideXml, 'utf8'));
+
+      // Copy rels (update any internal references if needed — layout ref is reused as-is)
+      const layoutTarget = this._getSlideLayoutTarget(zip, slideNumber);
+      const relsXml = this._buildSlideRelsXml(layoutTarget);
+      zip.addFile(`ppt/slides/_rels/slide${newNum}.xml.rels`, Buffer.from(relsXml, 'utf8'));
+
+      // Register in Content_Types, rels, and presentation.xml
+      this._registerSlideInContentTypes(zip, newNum);
+      const presRelId = this._registerSlideRelationship(zip, newNum);
+      this._registerSlideInPresentationXml(zip, presRelId);
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Internal: reorder slides in presentation.xml <p:sldIdLst>
+  // -------------------------------------------------------------------
+
+  _applyMovesToZip(zip) {
+    const presEntry = zip.getEntry('ppt/presentation.xml');
+    if (!presEntry) return;
+
+    let xml = presEntry.getData().toString('utf8');
+
+    // Extract the full <p:sldIdLst>...</p:sldIdLst> block
+    const lstMatch = xml.match(/<p:sldIdLst>([\s\S]*?)<\/p:sldIdLst>/);
+    if (!lstMatch) return;
+
+    // Pull individual <p:sldId .../> entries preserving order
+    const itemPattern = /<p:sldId[^/]*(\/?>|>[\s\S]*?<\/p:sldId>)/g;
+    const items = [...lstMatch[1].matchAll(/<p:sldId\b[^>]*\/>/g)].map((m) => m[0]);
+
+    if (items.length === 0) return;
+
+    // Apply each move in sequence (1-based → 0-based index)
+    for (const { from, to } of this.slideMoves) {
+      const fromIdx = from - 1;
+      const toIdx   = Math.min(to - 1, items.length - 1);
+      if (fromIdx < 0 || fromIdx >= items.length) continue;
+      const [moved] = items.splice(fromIdx, 1);
+      items.splice(toIdx, 0, moved);
+    }
+
+    const newLst = `<p:sldIdLst>${items.join('')}</p:sldIdLst>`;
+    xml = xml.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, newLst);
+    zip.updateFile('ppt/presentation.xml', Buffer.from(xml, 'utf8'));
+  }
+
+  // -------------------------------------------------------------------
+  // Internal: partial / regex text replacement across all slide XMLs
+  // -------------------------------------------------------------------
+
+  _applyGlobalReplacementsToZip(zip) {
+    const slideEntries = zip
+      .getEntries()
+      .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e.entryName));
+
+    for (const entry of slideEntries) {
+      let xml = entry.getData().toString('utf8');
+      for (const { oldText, newText, flags } of this.globalReplacements) {
+        // Escape for use inside a RegExp, then apply with caller-specified flags
+        const escaped = oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(escaped, flags);
+        // Replace only inside <a:t>...</a:t> tags to avoid corrupting XML markup
+        xml = xml.replace(/<a:t>([^<]*)<\/a:t>/g, (match, inner) => {
+          const replaced = inner.replace(pattern, escapeXml(newText));
+          return `<a:t>${replaced}</a:t>`;
+        });
+      }
+      zip.updateFile(entry.entryName, Buffer.from(xml, 'utf8'));
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Internal: set slide background color in slide XML
+  // -------------------------------------------------------------------
+
+  _applyBackgroundChangesToZip(zip) {
+    for (const { slideNumber, color } of this.backgroundChanges) {
+      const entryName = `ppt/slides/slide${slideNumber}.xml`;
+      const entry = zip.getEntry(entryName);
+      if (!entry) {
+        throw new Error(`setSlideBackground: slide ${slideNumber} not found in package.`);
+      }
+
+      let xml = entry.getData().toString('utf8');
+
+      // Build the solid fill background element
+      const bgFill =
+        `<p:bg><p:bgPr>` +
+        `<a:solidFill><a:srgbClr val="${color}"/></a:solidFill>` +
+        `<a:effectLst/>` +
+        `</p:bgPr></p:bg>`;
+
+      // Remove any existing <p:bg>...</p:bg> block first
+      xml = xml.replace(/<p:bg>[\s\S]*?<\/p:bg>/g, '');
+
+      // Inject right after <p:cSld ...> or <p:cSld>
+      xml = xml.replace(/(<p:cSld[^>]*>)/, `$1${bgFill}`);
+
+      zip.updateFile(entryName, Buffer.from(xml, 'utf8'));
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Internal: embed image file into the zip and inject <p:pic> shape
+  // -------------------------------------------------------------------
+
+  _applyImageAdditionsToZip(zip) {
+    const path = require('path');
+
+    // Detect media type from extension
+    const mimeMap = {
+      '.png':  'image/png',
+      '.jpg':  'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif':  'image/gif',
+      '.bmp':  'image/bmp',
+      '.webp': 'image/webp',
+    };
+
+    for (const { slideNumber, imagePath, opts } of this.imageAdditions) {
+      const ext      = path.extname(imagePath).toLowerCase();
+      const mimeType = mimeMap[ext] || 'image/png';
+      const imgData  = fs.readFileSync(imagePath);
+
+      // Find a unique media filename inside the zip
+      const existingMedia = zip
+        .getEntries()
+        .filter((e) => e.entryName.startsWith('ppt/media/'))
+        .map((e) => e.entryName);
+      const mediaNum = existingMedia.length + 1;
+      const mediaName = `image${mediaNum}${ext}`;
+      const mediaPath = `ppt/media/${mediaName}`;
+
+      zip.addFile(mediaPath, imgData);
+
+      // Register the image media type in [Content_Types].xml
+      const ctEntry = zip.getEntry('[Content_Types].xml');
+      if (ctEntry) {
+        let ctXml = ctEntry.getData().toString('utf8');
+        const defaultExt = ext.replace('.', '');
+        if (!ctXml.includes(`Extension="${defaultExt}"`)) {
+          ctXml = ctXml.replace(
+            '</Types>',
+            `<Default Extension="${defaultExt}" ContentType="${mimeType}"/></Types>`
+          );
+          zip.updateFile('[Content_Types].xml', Buffer.from(ctXml, 'utf8'));
+        }
+      }
+
+      // Add relationship in slide's .rels file
+      const relsEntryName = `ppt/slides/_rels/slide${slideNumber}.xml.rels`;
+      let relsEntry = zip.getEntry(relsEntryName);
+      let relsXml = relsEntry
+        ? relsEntry.getData().toString('utf8')
+        : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+          `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+
+      const existingRIds = [...relsXml.matchAll(/Id="rId(\d+)"/g)].map((m) => parseInt(m[1], 10));
+      const nextRId = existingRIds.length ? Math.max(...existingRIds) + 1 : 2;
+      const imgRelId = `rId${nextRId}`;
+
+      relsXml = relsXml.replace(
+        '</Relationships>',
+        `<Relationship Id="${imgRelId}" ` +
+        `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" ` +
+        `Target="../media/${mediaName}"/></Relationships>`
+      );
+
+      if (relsEntry) {
+        zip.updateFile(relsEntryName, Buffer.from(relsXml, 'utf8'));
+      } else {
+        zip.addFile(relsEntryName, Buffer.from(relsXml, 'utf8'));
+      }
+
+      // Build <p:pic> shape and inject into slide XML
+      const slideEntryName = `ppt/slides/slide${slideNumber}.xml`;
+      const slideEntry = zip.getEntry(slideEntryName);
+      if (!slideEntry) {
+        throw new Error(`addImageToSlide: slide ${slideNumber} not found in package.`);
+      }
+
+      let slideXml = slideEntry.getData().toString('utf8');
+      const shapeId = this._nextShapeId(slideXml);
+
+      const x  = inchesToEmu(opts.x !== undefined ? opts.x : 0.5);
+      const y  = inchesToEmu(opts.y !== undefined ? opts.y : 0.5);
+      const cx = inchesToEmu(opts.w !== undefined ? opts.w : 3);
+      const cy = inchesToEmu(opts.h !== undefined ? opts.h : 2);
+
+      const picXml =
+        `<p:pic>` +
+        `<p:nvPicPr>` +
+        `<p:cNvPr id="${shapeId}" name="Image ${shapeId}"/>` +
+        `<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>` +
+        `<p:nvPr/>` +
+        `</p:nvPicPr>` +
+        `<p:blipFill>` +
+        `<a:blip r:embed="${imgRelId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>` +
+        `<a:stretch><a:fillRect/></a:stretch>` +
+        `</p:blipFill>` +
+        `<p:spPr>` +
+        `<a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+        `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+        `</p:spPr>` +
+        `</p:pic>`;
+
+      const closeTag = '</p:spTree>';
+      const idx = slideXml.lastIndexOf(closeTag);
+      if (idx === -1) {
+        throw new Error(`addImageToSlide: slide ${slideNumber} XML is missing </p:spTree>.`);
+      }
+      slideXml = slideXml.slice(0, idx) + picXml + slideXml.slice(idx);
+      zip.updateFile(slideEntryName, Buffer.from(slideXml, 'utf8'));
+    }
   }
 }
 
