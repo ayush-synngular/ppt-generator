@@ -7,7 +7,8 @@
   "scripts": {
   "start": "node src/index.js help",
   "test": "node test/presentation-tests.js",
-  "build": "rm -rf dist && mkdir -p dist && cp src/index.js dist/index.js"
+  "build": "rm -rf dist && mkdir -p dist && cp src/index.js dist/index.js",
+  "qa-test": "jest testing"
 },
   "keywords": [
     "ppt",
